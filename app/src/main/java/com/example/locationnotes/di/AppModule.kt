@@ -1,5 +1,6 @@
 package com.example.locationnotes.di
 
+import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
 import androidx.room.Room
 import com.example.locationnotes.data.local.NoteDao
@@ -25,7 +26,9 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideDatabase(appContext: Context): NoteDatabase {
+    fun provideDatabase(
+        @ApplicationContext appContext: Context
+    ): NoteDatabase {
         return Room.databaseBuilder(
             appContext,
             NoteDatabase::class.java,
