@@ -6,21 +6,22 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.locationnotes.ui.auth.AuthScreen
 import com.example.locationnotes.ui.home.HomeScreen
-import com.google.firebase.auth.FirebaseAuth
+import com.example.locationnotes.ui.note.NoteScreen
+import com.example.locationnotes.ui.splash.SplashScreen
 
 
 @Composable
 fun AppNavHost(navController: NavHostController) {
-    val isAuthenticated = FirebaseAuth.getInstance().currentUser != null
-    val startDestination = if (isAuthenticated) Screen.Home.route else Screen.Auth.route
+    NavHost(navController = navController, startDestination = Screen.Splash.route) {
+        composable(Screen.Splash.route) { SplashScreen(navController) }
+        composable(Screen.Auth.route) { AuthScreen(navController) }
+        composable(Screen.Home.route) { HomeScreen(navController) }
 
-    NavHost(navController = navController, startDestination = startDestination) {
-        composable(Screen.Auth.route) {
-            AuthScreen(navController)
+        composable("note/{noteId}") { backStackEntry ->
+            val noteId = backStackEntry.arguments?.getString("noteId") ?: ""
+            NoteScreen(navController = navController, noteId = noteId)
         }
 
-        composable(Screen.Home.route) {
-            HomeScreen()
-        }
     }
+
 }

@@ -4,5 +4,9 @@ sealed class Screen(val route: String) {
     object Splash : Screen("splash")
     object Auth : Screen("auth")
     object Home : Screen("home")
-    object Note : Screen("note/{noteId}")
+    object Note : Screen("note/{noteId}") {
+        fun createRoute(noteId: String? = null): String {
+            return "note/${noteId ?: ""}"
+        }
+    }
 }
