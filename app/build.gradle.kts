@@ -94,4 +94,6 @@ dependencies {
     implementation(libs.play.services.location)
 
     implementation(libs.accompanist.permissions)
+    implementation ("com.google.accompanist:accompanist-permissions:0.34.0")
+
 }
