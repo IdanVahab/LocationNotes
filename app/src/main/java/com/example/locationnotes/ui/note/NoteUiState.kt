@@ -5,5 +5,8 @@ data class NoteUiState(
     val title: String = "",
     val body: String = "",
     val date: Long = System.currentTimeMillis(),
-    val location: String = ""
+    val location: String = "",
+
+    val titleError: Boolean = false,
+    val bodyError: Boolean = false
 )

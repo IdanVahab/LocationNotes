@@ -7,15 +7,14 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.locationnotes.data.model.Note
 import com.example.locationnotes.data.repository.NoteRepository
-import com.example.locationnotes.ui.note.NoteUiState
 import com.google.android.gms.location.LocationServices
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import java.util.*
 import javax.inject.Inject
 import android.util.Log
+import java.io.IOException
 
 @HiltViewModel
 class NoteViewModel @Inject constructor(
@@ -26,6 +25,7 @@ class NoteViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(NoteUiState())
     val uiState: StateFlow<NoteUiState> = _uiState
     private val TAG = "NoteViewModel"
+    private var originalNote: Note? = null
 
     fun loadNote(noteId: String) {
         if (noteId.isEmpty()) {
@@ -37,6 +37,7 @@ class NoteViewModel @Inject constructor(
         viewModelScope.launch {
             val note = repository.getNoteById(noteId)
             if (note != null) {
+                originalNote = note
                 _uiState.value = NoteUiState(
                     id = note.id,
                     title = note.title,
@@ -51,6 +52,16 @@ class NoteViewModel @Inject constructor(
         }
     }
 
+    fun hasUnsavedChanges(): Boolean {
+        val original = originalNote
+        val current = _uiState.value
+
+        return original?.title != current.title ||
+                original?.body != current.body ||
+                original?.location != current.location
+    }
+
+
     fun updateTitle(value: String) {
         _uiState.value = _uiState.value.copy(title = value)
     }
@@ -59,9 +70,24 @@ class NoteViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(body = value)
     }
 
-    fun saveNote() {
+    fun saveNote(
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val current = _uiState.value
+        val hasTitleError = current.title.isBlank()
+        val hasBodyError = current.body.isBlank()
+
+        if (hasTitleError || hasBodyError) {
+            _uiState.value = current.copy(
+                titleError = hasTitleError,
+                bodyError = hasBodyError
+            )
+            onError("Please fill in title and body.")
+            return
+        }
+
         viewModelScope.launch {
-            val current = _uiState.value
             val note = Note(
                 id = current.id,
                 title = current.title,
@@ -69,15 +95,27 @@ class NoteViewModel @Inject constructor(
                 date = current.date,
                 location = current.location
             )
-            if (note.id.isBlank()) {
-                repository.addNote(note)
-                Log.i(TAG, "Created new note: ${note.title}")
-            } else {
-                repository.updateNote(note)
-                Log.i(TAG, "Updated existing note: ${note.id}")
+
+            try {
+                if (note.id.isBlank()) {
+                    repository.addNote(note)
+                    Log.i(TAG, "Created new note: ${note.title}")
+                } else {
+                    repository.updateNote(note)
+                    Log.i(TAG, "Updated note: ${note.id}")
+                }
+                onSuccess()
+            } catch (e: IOException) {
+                Log.e(TAG, "No internet connection", e)
+                onError("No internet connection. Please try again later.")
+            } catch (e: Exception) {
+                Log.e(TAG, "Unexpected error while saving note", e)
+                onError("Something went wrong. Please try again.")
             }
+
         }
     }
+
 
     fun deleteNote() {
         viewModelScope.launch {
@@ -90,11 +128,16 @@ class NoteViewModel @Inject constructor(
     private fun getLocation() {
         val fused = LocationServices.getFusedLocationProviderClient(app)
         fused.lastLocation.addOnSuccessListener { location: Location? ->
-            location?.let {
-                val locStr = "${it.latitude},${it.longitude}"
+            if (location != null) {
+                val locStr = "${location.latitude},${location.longitude}"
                 _uiState.value = _uiState.value.copy(location = locStr)
-                Log.d(TAG, "Fetched current location: $locStr")
-            } ?: Log.e(TAG, "Failed to get location")
+                Log.d(TAG, "Fetched location: $locStr")
+            } else {
+                Log.w(TAG, "⚠️ Location is null!")
+            }
+        }.addOnFailureListener {
+            Log.e(TAG, "❌ Failed to get location", it)
         }
     }
+
 }
